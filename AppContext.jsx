@@ -1,3 +1,4 @@
+import { products as initialProducts } from '../data/products';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const Ctx = createContext();
@@ -8,7 +9,7 @@ const save = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)
 export function AppProvider({ children }) {
   const [user,     setUser]     = useState(() => load('sc_user', null));
   const [users,    setUsers]    = useState(() => load('sc_users', []));
-  const [products, setProducts] = useState(() => load('sc_products', null));
+  const [products, setProducts] = useState(() => load('sc_products', initialProducts));
   const [cart,     setCart]     = useState([]);
   const [orders,   setOrders]   = useState(() => load('sc_orders', []));
   const [notifs,   setNotifs]   = useState(() => load('sc_notifs', []));
@@ -18,7 +19,7 @@ export function AppProvider({ children }) {
 
   useEffect(() => { save('sc_user',     user);     }, [user]);
   useEffect(() => { save('sc_users',    users);    }, [users]);
-  useEffect(() => { if (products) save('sc_products', products); }, [products]);
+ useEffect(() => { save('sc_products', products); }, [products]);
   useEffect(() => { save('sc_orders',   orders);   }, [orders]);
   useEffect(() => { save('sc_notifs',   notifs);   }, [notifs]);
   useEffect(() => { save('sc_msgs',     messages); }, [messages]);
@@ -83,7 +84,7 @@ export function AppProvider({ children }) {
   /* ── PRODUCTS ── */
   const updateProduct = p  => setProducts(prev => prev.map(x => x.id === p.id ? { ...p } : x));
   const deleteProduct = id => setProducts(prev => prev.filter(x => x.id !== id));
-  const addProduct    = p  => setProducts(prev => [...prev, { ...p, id: Date.now(), isNew: true, createdAt: new Date().toISOString() }]);
+  const addProduct = p => setProducts(prev => [...(prev || []), { ...p, id: Date.now(), isNew: true, createdAt: new Date().toISOString() }]);
 
   /* ── SUSPEND ── */
   const suspendUser   = email => setUsers(p => p.map(u => u.email === email ? { ...u, suspended: true }  : u));
