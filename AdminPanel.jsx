@@ -59,15 +59,22 @@ export default function AdminPanel({ onClose }) {
     </div>
   );
 
-  /* ANALYTICS */
-  const last30 = Array.from({ length: 30 }, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() - (29 - i));
-    const ds = d.toISOString().slice(0, 10);
-    const day = orders.filter(o => o.createdAt?.slice(0, 10) === ds && o.status !== 'cancelled');
-    return { day: d.getDate(), revenue: day.reduce((s, o) => s + (o.totalAmount || 0), 0), orders: day.length };
-  });
-  const totalRev = orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + (o.totalAmount || 0), 0);
-  const totalOrd = orders.filter(o => o.status !== 'cancelled').length;
+/* ANALYTICS SAFE VERSION */
+  /* --- ANALYTICS SAFE VERSION --- */
+const safeOrders = orders || []; 
+const last30 = Array.from({ length: 30 }, (_, i) => {
+  const d = new Date(); d.setDate(d.getDate() - (29 - i));
+  const ds = d.toISOString().slice(0, 10);
+  const day = safeOrders.filter(o => o.createdAt?.slice(0, 10) === ds && o.status !== 'cancelled');
+  return { 
+    day: d.getDate(), 
+    revenue: day.reduce((s, o) => s + (Number(o.totalAmount) || 0), 0), 
+    orders: day.length 
+  };
+});
+const totalRev = safeOrders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + (Number(o.totalAmount) || 0), 0);
+const totalOrd = safeOrders.filter(o => o.status !== 'cancelled').length;
+/* ------------------------------ */
   const unreadN  = notifs.filter(n => !n.read).length;
   const unreadM  = messages.filter(m => m.to === 'admin' && !m.read).length;
 
@@ -172,7 +179,7 @@ export default function AdminPanel({ onClose }) {
                   </div>
                   <div style={{ padding: '10px 12px', flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3, marginBottom: 3 }}>{p.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--gold)', fontWeight: 800 }}>Rs. {p.price?.toLocaleString()}</div>
+                    <div style={{ fontSize: 12, color: 'var(--gold)', fontWeight: 800 }}>Rs. {Number(p.price || 0).toLocaleString()}</div>
                     <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{CAT_LABELS?.[p.category] || p.category}</div>
                   </div>
                   <div style={{ display: 'flex', borderTop: '1px solid #f5f5f5' }}>
@@ -441,7 +448,7 @@ export default function AdminPanel({ onClose }) {
       </div>
 
       {editP  && <ProductForm product={editP} onClose={() => setEditP(null)} onSave={p => { updateProduct(p); setEditP(null); }} isEdit />}
-      {addP   && <ProductForm product={null}  onClose={() => setAddP(false)} onSave={p => { addProduct(p); setAddP(false); }} />}
+      {addP && <ProductForm product={null} onClose={() => setAddP(false)} onSave={async (p) => { await addProduct(p); setAddP(false); }} />}
       {thread && tab !== 'messages' && <FloatingChatModal email={thread} onClose={() => setThread(null)} />}
     </div>
   );
@@ -492,7 +499,7 @@ function FloatingChatModal({ email, onClose }) {
   const { messages, sendMsg, readMsg, users } = useApp();
   const [text, setText] = useState('');
   const bottomRef = useRef(null);
-  const user   = users.find(u => u.email === email);
+  const user = users.find(u => u.email === email);
   const thread = messages.filter(m => m.from === email || m.to === email).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
   useEffect(() => {
@@ -506,23 +513,27 @@ function FloatingChatModal({ email, onClose }) {
     <div className="overlay" style={{ zIndex: 1300 }}>
       <div className="mbox a-scaleIn" style={{ maxWidth: 500, padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '80vh' }}>
         <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div><div style={{ fontWeight: 700, fontSize: 15 }}>{user?.fullName || email}</div><div style={{ fontSize: 12, color: '#aaa' }}>{email}</div></div>
-          <button onClick={onClose} style={{ background: '#f5f5f5', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={15} /></button>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{user?.fullName || email}</div>
+            <div style={{ fontSize: 12, color: '#aaa' }}>{email}</div>
+          </div>
+          <button onClick={onClose} style={{ background: '#f5f5f5', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <X size={15} />
+          </button>
         </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 22px', display: 'flex', flexDirection: 'column', gap: 10, minHeight: 180, maxHeight: 340 }}>
-          {thread.length === 0 && <div style={{ textAlign: 'center', color: '#aaa', fontSize: 13, marginTop: 40 }}>No messages yet</div>}
-          {thread.map(m => (
-            <div key={m.id} style={{ display: 'flex', justifyContent: m.from === 'admin' ? 'flex-end' : 'flex-start' }}>
-              <div style={{ background: m.from === 'admin' ? 'linear-gradient(135deg,#c9a84c,#e8c96a)' : '#f0f0f0', color: '#000', borderRadius: m.from === 'admin' ? '16px 16px 4px 16px' : '16px 16px 16px 4px', padding: '10px 14px', maxWidth: '75%', fontSize: 13, lineHeight: 1.5 }}>
-                {m.text}<div style={{ fontSize: 10, opacity: .5, marginTop: 3 }}>{new Date(m.createdAt).toLocaleTimeString()}</div>
-              </div>
-            </div>
-          ))}
-          <div ref={bottomRef} />
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+           {thread.map(m => (
+             <div key={m.id} style={{ display: 'flex', justifyContent: m.from === 'admin' ? 'flex-end' : 'flex-start' }}>
+               <div style={{ background: m.from === 'admin' ? 'var(--gold)' : '#f0f0f0', padding: '8px 12px', borderRadius: 10, fontSize: 13 }}>
+                 {m.text}
+               </div>
+             </div>
+           ))}
+           <div ref={bottomRef} />
         </div>
-        <div style={{ padding: '12px 22px 18px', borderTop: '1px solid #f0f0f0', display: 'flex', gap: 10 }}>
-          <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} placeholder="Type a message..." className="inp" style={{ flex: 1 }} />
-          <button className="btn-g" onClick={send} style={{ padding: '12px 18px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 5 }}><Send size={14} /> Send</button>
+        <div style={{ padding: '12px 18px', borderTop: '1px solid #f0f0f0', display: 'flex', gap: 8 }}>
+          <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} placeholder="Type reply..." className="inp" style={{ flex: 1 }} />
+          <button className="btn-g" onClick={send}>Send</button>
         </div>
       </div>
     </div>
