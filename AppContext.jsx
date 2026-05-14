@@ -66,20 +66,30 @@ export function AppProvider({ children }) {
 
   const logout = () => setUser(null);
 
-  /* ── PRODUCTS (FIREBASE ACTIONS) ── */
-  const addProduct = async (p) => {
-    try {
-      await addDoc(collection(db, "products"), {
-        ...p,
-        isNew: true,
-        createdAt: new Date().toISOString()
-      });
-      return { ok: true };
-    } catch (e) { 
-      console.error("Firebase Error:", e);
+/* ── PRODUCTS (FIREBASE ACTIONS) ── */
+const addProduct = async (p) => {
+  try {
+    // Check karein ke data khali toh nahi
+    if (!p.title || !p.price) {
+      alert("Please fill title and price");
       return { ok: false };
     }
-  };
+
+    const docRef = await addDoc(collection(db, "products"), {
+      ...p,
+      price: Number(p.price), // Price ko hamesha number banayein
+      isNew: true,
+      createdAt: new Date().toISOString()
+    });
+
+    console.log("Product Added! ID:", docRef.id);
+    return { ok: true };
+  } catch (e) { 
+    console.error("Firebase Error Details:", e);
+    alert("Firebase Error: " + e.message); // User ko error dikhayein
+    return { ok: false };
+  }
+};
 
   const deleteProduct = async (id) => {
     try {
