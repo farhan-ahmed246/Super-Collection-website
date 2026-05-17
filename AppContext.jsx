@@ -127,7 +127,7 @@ const INITIAL_PRODUCTS = [
     colors: [{ name: 'Grey', hex: '#808080' }]
   },
   { 
-    id:16, 
+    id:11, 
     title:'Karandi Suit Unstitched', 
     description:'Premium quality karandi fabric, 3-piece unstitched.', 
     price:3200, 
@@ -139,7 +139,7 @@ const INITIAL_PRODUCTS = [
     colors: [{ name: 'Cream', hex: '#fef3c7' }]
   },
   { 
-    id:26, 
+    id:12, 
     title:'Printed Lawn Per Meter', 
     description:'Budget-friendly printed lawn fabric per meter.', 
     price:180, 
@@ -157,7 +157,8 @@ export function AppProvider({ children }) {
   const [users,    setUsers]    = useState(() => load('sc_users', []));
   const [products, setProducts] = useState(() => {
     const stored = load('sc_products', null);
-    return stored && stored.length > 0 ? stored : INITIAL_PRODUCTS;
+    // Agar localStorage empty hai (fresh deploy) to INITIAL_PRODUCTS use karo
+    return (stored && stored.length > 0) ? stored : INITIAL_PRODUCTS;
   });
   const [cart,     setCart]     = useState([]);
   const [orders,   setOrders]   = useState(() => load('sc_orders', []));
@@ -175,6 +176,7 @@ export function AppProvider({ children }) {
   useEffect(() => { save('sc_gift',     giftUsed); }, [giftUsed]);
   useEffect(() => { save('sc_settings', settings); }, [settings]);
 
+  // User ko fresh rakhein jab users list change ho (suspend/unsuspend)
   useEffect(() => {
     if (user) {
       const fresh = users.find(u => u.email === user.email);
@@ -182,6 +184,7 @@ export function AppProvider({ children }) {
     }
   }, [users]);
 
+  /* ── AUTH ── */
   const signup = (fullName, email, password) => {
     if (users.find(u => u.email === email)) return { ok: false, msg: 'Email already registered' };
     const u = { id: Date.now(), fullName, email, password, createdAt: new Date().toISOString(), suspended: false, isNew: true };
@@ -200,12 +203,15 @@ export function AppProvider({ children }) {
 
   const logout = () => setUser(null);
 
+  /* ── GIFT ── */
   const hasGift = user ? !giftUsed.includes(user.email) : false;
   const useGift = () => { if (user && hasGift) setGiftUsed(p => [...p, user.email]); };
 
+  /* ── CART ── */
   const addToCart    = (product, qty = 1) => setCart(p => p.find(i => i.id === product.id) ? p : [...p, { ...product, qty }]);
   const removeFromCart = id => setCart(p => p.filter(i => i.id !== id));
 
+  /* ── ORDERS ── */
   const placeOrder = data => {
     const o = { id: `ORD-${Date.now()}`, ...data, userEmail: user?.email, customerName: user?.fullName, status: 'confirmed', createdAt: new Date().toISOString() };
     setOrders(p => [...p, o]);
@@ -225,13 +231,16 @@ export function AppProvider({ children }) {
 
   const readNotif = id => setNotifs(p => p.map(n => n.id === id ? { ...n, read: true } : n));
 
+  /* ── PRODUCTS ── */
   const updateProduct = p  => setProducts(prev => prev.map(x => x.id === p.id ? { ...p } : x));
   const deleteProduct = id => setProducts(prev => prev.filter(x => x.id !== id));
   const addProduct    = p  => setProducts(prev => [...prev, { ...p, id: Date.now(), isNew: true, createdAt: new Date().toISOString() }]);
 
+  /* ── SUSPEND ── */
   const suspendUser   = email => setUsers(p => p.map(u => u.email === email ? { ...u, suspended: true }  : u));
   const unsuspendUser = email => setUsers(p => p.map(u => u.email === email ? { ...u, suspended: false } : u));
 
+  /* ── MESSAGES ── */
   const sendMsg = (to, text, from) => {
     const m = { id: Date.now(), from, to, text, createdAt: new Date().toISOString(), read: false };
     setMessages(p => [...p, m]);
@@ -239,6 +248,7 @@ export function AppProvider({ children }) {
   };
   const readMsg = id => setMessages(p => p.map(m => m.id === id ? { ...m, read: true } : m));
 
+  /* ── SETTINGS ── */
   const updateSettings = s => setSettings(prev => ({ ...prev, ...s }));
 
   return (
